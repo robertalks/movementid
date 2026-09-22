@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MovementID — Privacy Policy</title>
+<meta name="description" content="How the MovementID Android app handles your photos, API keys and backups.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
+<style>
+  /* Rhodium-plate greys with heat-blued steel as the one accent — the colour of a blued screw. */
+  :root {
+    --plate: #eef1f4;
+    --ink: #1f2a33;
+    --muted: #5b6b78;
+    --rule: #c9d1d8;
+    --blued: #2f5e8c;
+    --card: #ffffff;
+    --mark: #fff3c4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --plate: #151a1f;
+      --ink: #e4e9ee;
+      --muted: #9aa8b4;
+      --rule: #2d3740;
+      --blued: #7fa8d6;
+      --card: #1c232a;
+      --mark: #4a4220;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--plate);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: 1.0625rem;
+    line-height: 1.65;
+  }
+  main {
+    max-width: 68ch;
+    margin: 0 auto;
+    padding: 3rem 1.25rem 4rem;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 2rem;
+  }
+  header svg { flex: none; width: 56px; height: 56px; color: var(--blued); }
+  h1 {
+    font-size: 2rem;
+    line-height: 1.15;
+    margin: 0;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .dates { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.95rem; }
+  h2 {
+    font-size: 1.3rem;
+    line-height: 1.3;
+    margin: 2.5rem 0 0.5rem;
+    font-weight: 600;
+    color: var(--blued);
+  }
+  h3 { font-size: 1.05rem; margin: 1.5rem 0 0.25rem; font-weight: 600; }
+  p, ul { margin: 0 0 1rem; }
+  ul { padding-left: 1.25rem; }
+  li { margin-bottom: 0.4rem; }
+  a { color: var(--blued); text-underline-offset: 2px; }
+  a:focus-visible { outline: 2px solid var(--blued); outline-offset: 2px; border-radius: 2px; }
+  .summary {
+    background: var(--card);
+    border-left: 3px solid var(--blued);
+    padding: 1.1rem 1.25rem 0.4rem;
+    margin: 0 0 1rem;
+  }
+  .summary p { margin-bottom: 0.6rem; }
+  mark { background: var(--mark); color: inherit; padding: 0 0.2em; }
+  footer {
+    margin-top: 3rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--rule);
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <!-- The balance wheel from the app: rim, timing screws, spokes, hairspring. -->
+  <svg viewBox="0 0 64 64" aria-hidden="true" fill="none" stroke="currentColor">
+    <circle cx="32" cy="32" r="24" stroke-width="3.5"/>
+    <path d="M32 32 L49 15 M32 32 L15 49 M32 32 L15 15 M32 32 L49 49" stroke-width="1.6" opacity=".55"/>
+    <path d="M32 32 m3 0 a3 3 0 1 1 -6 0 a6 6 0 1 1 12 0 a9 9 0 1 1 -18 0 a12 12 0 1 1 24 0" stroke-width="1.2" opacity=".7"/>
+    <g fill="currentColor" stroke="none">
+      <circle cx="32" cy="8" r="2.6"/><circle cx="56" cy="32" r="2.6"/>
+      <circle cx="32" cy="56" r="2.6"/><circle cx="8" cy="32" r="2.6"/>
+      <circle cx="32" cy="32" r="3"/>
+    </g>
+  </svg>
+  <div>
+    <h1>MovementID privacy policy</h1>
+    <p class="dates">Effective 22 September 2026</p>
+  </div>
+</header>
+
+<div class="summary">
+  <p><strong>In short:</strong> MovementID has no servers and no accounts. The developer never receives your photos, your saved movements or your API keys.</p>
+  <p>Photos leave your phone only when you tap Identify, and only to the AI service you chose. Backups go only to storage you set up yourself. There are no ads, analytics or trackers.</p>
+</div>
+
+<h2>Who this policy covers</h2>
+<p>This policy describes how the MovementID Android app (“the app”) handles information. The app is developed by <mark>Robert Milasan</mark>, who can be contacted at <mark>movementid@linux-source.org</mark>.</p>
+<p>The developer does not operate any server for the app and does not collect, receive, store or sell any personal data. Everything described below either stays on your device or goes directly from your device to a service you have chosen.</p>
+
+<h2>What the app stores on your device</h2>
+<ul>
+  <li><strong>Photos</strong> of watch movements that you take with the camera, choose from your gallery, or share into the app.</li>
+  <li><strong>Saved identifications</strong>: the details of each movement, your notes and corrections, and which AI model produced the result.</li>
+  <li><strong>Settings</strong>, including the API keys you enter for AI services and, if you use backup, your backup server address and credentials. Keys and credentials are stored encrypted using Android's secure key storage.</li>
+</ul>
+<p>This information stays in the app's private storage on your phone. Uninstalling the app deletes it.</p>
+
+<h2>When information leaves your device</h2>
+
+<h3>Identifying a movement</h3>
+<p>When you tap Identify, the photos you selected, together with any correction you typed, are sent directly from your device to the AI service selected in Settings:</p>
+<ul>
+  <li><strong>Google Gemini API</strong>, operated by Google, under the <a href="https://ai.google.dev/gemini-api/terms">Gemini API Additional Terms of Service</a> and the <a href="https://policies.google.com/privacy">Google Privacy Policy</a>.</li>
+  <li><strong>OpenAI API</strong>, operated by OpenAI, under the <a href="https://openai.com/policies/row-privacy-policy/">OpenAI Privacy Policy</a>.</li>
+</ul>
+<p>These requests use your own API key, so they are between you and that service. Each service has its own rules on how long it keeps submitted content and whether it is used to improve their models. Notably, Google's terms state that content sent through the <em>free</em> tier of the Gemini API may be used to improve Google's products and may be read by human reviewers; content sent through its paid tier is not. Please review the terms of the service you use, and avoid photographing anything you consider private.</p>
+
+<h3>Checking the result online</h3>
+<ul>
+  <li>If you use the optional web check, the identified caliber (text only, not your photo) is sent to the same AI service, which may search the web to verify it.</li>
+  <li>The app periodically downloads a public table of lift angles from <a href="https://watchguy.co.uk/cgi-bin/lift_angles">watchguy.co.uk</a>. This is an ordinary download; nothing about you or your movements is sent.</li>
+  <li>The Search Google, Images and Ranfft buttons open a search in your web browser. From that point the browser and the website's own privacy policies apply.</li>
+</ul>
+
+<h3>Backups</h3>
+<p>Backup is optional and off until you set it up. When enabled, the app sends an archive of your saved movements, notes and photos directly to the WebDAV storage you configured, for example your own Koofr account. The developer has no access to it. <strong>API keys are never included in backups.</strong></p>
+<p>You can also export a backup file to any location you pick on your device. That file is then under your control.</p>
+<p>Separately, Android's own device backup, if you have it switched on in your phone's settings, may include the app's data in your Google Account backup. That is governed by your Android and Google settings, not by the app.</p>
+
+<h2>Permissions the app uses</h2>
+<ul>
+  <li><strong>Camera</strong>: to photograph a movement. It is used only when you open the camera in the app. You can deny it and still use photos from your gallery.</li>
+  <li><strong>Internet</strong>: to reach the AI service you chose, your backup storage, and the lift angle table.</li>
+</ul>
+<p>Choosing photos uses Android's photo picker, which gives the app only the photos you select, not access to your whole gallery.</p>
+
+<h2>What the app does not do</h2>
+<ul>
+  <li>No advertising and no advertising identifiers.</li>
+  <li>No analytics, crash-reporting or tracking services.</li>
+  <li>No user accounts, and no data sent to the developer.</li>
+  <li>No location access and no access to contacts.</li>
+  <li>No sale or sharing of data with anyone.</li>
+</ul>
+
+<h2>Keeping or deleting your data</h2>
+<p>Your data is kept for as long as you keep it in the app. You can delete any saved movement from its detail screen, and uninstalling the app removes everything stored on the device. Backups you made live in your own storage and can be deleted there. To have content removed from an AI service, contact that service directly, since the developer holds none of it.</p>
+
+<h2>Your rights</h2>
+<p>If you are in the European Union or the United Kingdom, you have rights under the GDPR, including access to and erasure of your personal data. Because the developer does not collect or hold your data, those requests are best directed to the AI or storage service you used. You are welcome to contact the developer with any question about this policy.</p>
+
+<h2>Children</h2>
+<p>The app is not directed at children under 13 (or under 16 where local law requires it) and does not knowingly collect information from them.</p>
+
+<h2>Changes to this policy</h2>
+<p>If the way the app handles data changes, this page will be updated and the effective date above will change. Significant changes will also be mentioned in the app's release notes on Google Play.</p>
+
+<h2>Contact</h2>
+<p>Questions about this policy: <mark>movementid@linux-source.org</mark></p>
+
+<footer>
+  <p>MovementID is an independent app and is not affiliated with Google, OpenAI, Koofr, WatchGuy or any watch manufacturer.</p>
+</footer>
+
+</main>
+</body>
+</html>
