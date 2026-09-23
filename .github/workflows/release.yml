@@ -20,6 +20,12 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+# The default GITHUB_TOKEN is read-only in repositories whose default workflow permissions are
+# set to read. Creating a Release needs write access to repository contents; nothing else here
+# does, so this is the narrowest grant that works.
+permissions:
+  contents: write
+
 jobs:
   bundle:
     runs-on: ubuntu-latest
@@ -67,6 +73,20 @@ jobs:
           else
             gradle bundleRelease assembleRelease --stacktrace
           fi
+
+      # Gradle still produces an APK when signing isn't configured — it just names it
+      # "app-release-unsigned.apk". Publishing that looks fine until someone tries to install
+      # it and Android says the package is invalid, so fail here instead.
+      - name: Verify the APK is signed
+        run: |
+          ls -la app/build/outputs/apk/release/
+          if ls app/build/outputs/apk/release/*unsigned*.apk >/dev/null 2>&1; then
+            echo "::error::The APK is UNSIGNED — the signing config didn't apply. Check the four signing secrets." >&2
+            exit 1
+          fi
+          APK=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK"
 
       # Renamed so downloads say what version they are, rather than "app-release.apk".
       - name: Name the files after the tag

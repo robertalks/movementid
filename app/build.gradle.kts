@@ -43,6 +43,22 @@ android {
     packaging {
         resources.excludes.add("/META-INF/{AL2.0,LGPL2.1}")
     }
+    /**
+     * Signing for CI. The keystore never lives in the repository: the workflow writes it from a
+     * secret and passes its location and passwords as environment variables. Locally these are
+     * unset, so this block does nothing and Android Studio's own signing dialog still works.
+     */
+    val ciKeystore = System.getenv("MOVEMENTID_KEYSTORE")
+    signingConfigs {
+        if (!ciKeystore.isNullOrBlank()) {
+            create("ci") {
+                storeFile = file(ciKeystore)
+                storePassword = System.getenv("MOVEMENTID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("MOVEMENTID_KEY_ALIAS")
+                keyPassword = System.getenv("MOVEMENTID_KEY_PASSWORD")
+            }
+        }
+    }
 }
 
 dependencies {

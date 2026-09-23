@@ -1,8 +1,12 @@
-# Builds the app on every push, on a clean machine.
+# Compiles the app on every push, on a clean machine.
 #
-# Worth having beyond convenience: a fresh runner has none of the local caches or stale
-# generated files a development machine accumulates, so it catches "works on my machine"
-# problems — a missing file that was never committed, or a dependency only present locally.
+# This is a correctness check, not a way to produce something installable — a debug APK is
+# signed with a throwaway key and can't be installed over the Play build anyway, so building
+# one and uploading it would just be an artifact nobody downloads.
+#
+# What it does catch is the "works on my machine" class of problem: a file that was never
+# committed, an import that only resolves thanks to a local cache, a stray brace. Those are
+# exactly the errors that are cheapest to find automatically and most annoying to find by hand.
 name: Build
 
 on:
@@ -12,7 +16,7 @@ on:
   workflow_dispatch:        # lets you trigger it by hand from the Actions tab
 
 jobs:
-  debug-apk:
+  compile:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,7 +28,6 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # Runners ship an Android SDK, but not necessarily the platform this app targets.
       # `packages` must be set explicitly: the action's default includes the legacy "tools"
       # package, which Google has removed from the SDK repository, so the default fails.
       - name: Set up Android SDK
@@ -35,19 +38,33 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build debug APK
+      - name: Compile
         run: |
           if [ -f ./gradlew ]; then
             chmod +x ./gradlew
-            ./gradlew assembleDebug --stacktrace
+            # Kotlin compilation plus Room's code generation (KSP), which is where a bad DAO
+            # query or a changed entity shows up.
+            ./gradlew compileDebugKotlin --stacktrace
           else
-            # No wrapper committed — fall back to the Gradle the action installed.
-            gradle assembleDebug --stacktrace
+            echo "::warning::No Gradle wrapper committed — using the runner's Gradle, which may not match your AGP version. Commit gradlew and gradle/wrapper/ to pin it."
+            gradle compileDebugKotlin --stacktrace
           fi
 
-      - name: Upload APK
+      - name: Android Lint
+        # Runs even if you only want the compile result, and reports separately so a lint
+        # warning doesn't look like a build failure.
+        continue-on-error: true
+        run: |
+          if [ -f ./gradlew ]; then
+            ./gradlew lintDebug --stacktrace
+          else
+            gradle lintDebug --stacktrace
+          fi
+
+      - name: Upload lint report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: movementid-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
+          name: lint-report
+          path: app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
