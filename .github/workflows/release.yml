@@ -1,4 +1,4 @@
-# Builds a SIGNED release bundle for Google Play, triggered by pushing a version tag:
+# Builds a SIGNED release, triggered by pushing a version tag:
 #
 #     git tag v3.0 && git push origin v3.0
 #
@@ -59,7 +59,7 @@ jobs:
           fi
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
 
-      - name: Build signed bundle and APK
+      - name: Build signed APK
         env:
           MOVEMENTID_KEYSTORE: ${{ runner.temp }}/upload.jks
           MOVEMENTID_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -68,10 +68,10 @@ jobs:
         run: |
           if [ -f ./gradlew ]; then
             chmod +x ./gradlew
-            # .aab for Google Play, .apk for sideloading and GitHub Releases.
-            ./gradlew bundleRelease assembleRelease --stacktrace
+            # .apk for sideloading and GitHub Releases.
+            ./gradlew assembleRelease --stacktrace
           else
-            gradle bundleRelease assembleRelease --stacktrace
+            gradle assembleRelease --stacktrace
           fi
 
       # Gradle still produces an APK when signing isn't configured — it just names it
@@ -93,7 +93,6 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME:-manual}"
           mkdir -p dist
-          cp app/build/outputs/bundle/release/*.aab "dist/MovementID-$VERSION.aab"
           cp app/build/outputs/apk/release/*.apk   "dist/MovementID-$VERSION.apk"
           ls -la dist
 
@@ -111,5 +110,4 @@ jobs:
         with:
           files: |
             dist/*.apk
-            dist/*.aab
           generate_release_notes: true
