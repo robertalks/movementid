@@ -1,0 +1,18 @@
+<resources>
+    <!--
+      Launch theme. On Android 12+ the system ALWAYS shows its own splash before the activity
+      draws — that was the second splash appearing. It can't be disabled, but it can be made
+      identical to ours: black window, black splash background, and no icon, so the handover to
+      the Compose splash is invisible. postSplashScreenTheme is what the activity switches to
+      once installSplashScreen() runs.
+    -->
+    <style name="Theme.MovementID.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@android:color/black</item>
+        <item name="windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+        <item name="postSplashScreenTheme">@style/Theme.MovementID</item>
+    </style>
+
+    <style name="Theme.MovementID" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+</resources>

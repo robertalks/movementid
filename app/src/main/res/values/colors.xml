@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Near-black, matching the splash so the icon and launch screen feel like one thing. -->
+    <color name="ic_launcher_background">#15151A</color>
+</resources>
