@@ -1,0 +1,52 @@
+# Builds the app on every push, on a clean machine.
+#
+# Worth having beyond convenience: a fresh runner has none of the local caches or stale
+# generated files a development machine accumulates, so it catches "works on my machine"
+# problems — a missing file that was never committed, or a dependency only present locally.
+name: Build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:        # lets you trigger it by hand from the Actions tab
+
+jobs:
+  debug-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # Runners ship an Android SDK, but not necessarily the platform this app targets.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install the platform this app compiles against
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK
+        run: |
+          if [ -f ./gradlew ]; then
+            chmod +x ./gradlew
+            ./gradlew assembleDebug --stacktrace
+          else
+            # No wrapper committed — fall back to the Gradle the action installed.
+            gradle assembleDebug --stacktrace
+          fi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: movementid-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
