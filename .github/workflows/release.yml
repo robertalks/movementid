@@ -33,11 +33,12 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      # `packages` must be set explicitly: the action's default includes the legacy "tools"
+      # package, which Google has removed from the SDK repository, so the default fails.
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-
-      - name: Install the platform this app compiles against
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -52,7 +53,7 @@ jobs:
           fi
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
 
-      - name: Build signed App Bundle
+      - name: Build signed bundle and APK
         env:
           MOVEMENTID_KEYSTORE: ${{ runner.temp }}/upload.jks
           MOVEMENTID_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -61,22 +62,34 @@ jobs:
         run: |
           if [ -f ./gradlew ]; then
             chmod +x ./gradlew
-            ./gradlew bundleRelease --stacktrace
+            # .aab for Google Play, .apk for sideloading and GitHub Releases.
+            ./gradlew bundleRelease assembleRelease --stacktrace
           else
-            gradle bundleRelease --stacktrace
+            gradle bundleRelease assembleRelease --stacktrace
           fi
 
-      - name: Upload bundle
+      # Renamed so downloads say what version they are, rather than "app-release.apk".
+      - name: Name the files after the tag
+        run: |
+          VERSION="${GITHUB_REF_NAME:-manual}"
+          mkdir -p dist
+          cp app/build/outputs/bundle/release/*.aab "dist/MovementID-$VERSION.aab"
+          cp app/build/outputs/apk/release/*.apk   "dist/MovementID-$VERSION.apk"
+          ls -la dist
+
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: movementid-release-bundle
-          path: app/build/outputs/bundle/release/*.aab
+          name: movementid-release
+          path: dist/*
           if-no-files-found: error
 
-      # Convenience for sideloading: the same build as an installable APK.
+      # The APK is what people sideload; the AAB is only useful for uploading to Play.
       - name: Attach to a GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: app/build/outputs/bundle/release/*.aab
+          files: |
+            dist/*.apk
+            dist/*.aab
           generate_release_notes: true

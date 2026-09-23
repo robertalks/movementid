@@ -25,11 +25,12 @@ jobs:
           distribution: 'temurin'
 
       # Runners ship an Android SDK, but not necessarily the platform this app targets.
+      # `packages` must be set explicitly: the action's default includes the legacy "tools"
+      # package, which Google has removed from the SDK repository, so the default fails.
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-
-      - name: Install the platform this app compiles against
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
