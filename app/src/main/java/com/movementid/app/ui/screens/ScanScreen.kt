@@ -89,7 +89,13 @@ import com.movementid.app.network.CaliberSearch
 import com.movementid.app.network.LiftAngleCheck
 import com.movementid.app.network.LiftAngleTable
 import com.movementid.app.network.MovementIdentification
+import com.movementid.app.network.NotAMovement
 import com.movementid.app.network.contradictsMarkings
+import com.movementid.app.network.notAMovement
+import com.movementid.app.ui.MakerMark
+import com.movementid.app.ui.makerNameFrom
+import com.movementid.app.ui.theme.Engraved
+import com.movementid.app.ui.theme.MovementColors
 import com.movementid.app.network.SearchStatus
 import com.movementid.app.repository.ModelAttempt
 import kotlinx.coroutines.delay
@@ -406,7 +412,22 @@ private fun ReviewSheet(
                     }
                 }
 
-                if (selected?.result != null) {
+                val rejection = selected?.result?.identification?.notAMovement()
+
+                if (selected?.result != null && rejection != null) {
+                    // No Save button on this path at all. A disabled one would invite arguing
+                    // with it; there is simply nothing here worth putting in the collection.
+                    NotAMovementPanel(
+                        rejection = rejection,
+                        onInsist = {
+                            onFeedback(
+                                "This IS a watch movement. Look again and identify it."
+                            )
+                        },
+                        onRetry = onRetry,
+                        onDiscard = onDiscard
+                    )
+                } else if (selected?.result != null) {
                     // key() so switching tabs rebuilds the edit fields for the newly selected model
                     // instead of carrying the previous model's edits across.
                     key(selected.model) {
@@ -423,6 +444,92 @@ private fun ReviewSheet(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Shown instead of the editable result when the model says the photo isn't a movement.
+ *
+ * The point is that nothing is saved and there is no way to save it from here — a photo of a
+ * derailleur filed under "ETA 2824-2" is the one kind of wrong answer the collection can't
+ * recover from, because later you have no idea which entries were real.
+ *
+ * "It is a movement" exists because the check will sometimes be wrong: an unusual movement, a
+ * bad angle, a module the model doesn't recognise. It re-asks with the correction attached
+ * rather than forcing the rejected answer through, so what gets saved is still an
+ * identification and not an override of one.
+ */
+@Composable
+private fun NotAMovementPanel(
+    rejection: NotAMovement,
+    onInsist: () -> Unit,
+    onRetry: () -> Unit,
+    onDiscard: () -> Unit
+) {
+    Column(modifier = Modifier.padding(top = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .background(
+                        if (rejection is NotAMovement.DialSide) MovementColors.Warn
+                        else MovementColors.Bad,
+                        CircleShape
+                    )
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Nothing saved",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+        Text(rejection.headline(), style = MaterialTheme.typography.headlineSmall)
+
+        Spacer(Modifier.height(10.dp))
+        Text(
+            rejection.body(),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(Modifier.height(16.dp))
+        Surface(
+            shape = MaterialTheme.shapes.small,
+            color = MovementColors.SurfaceRaised,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = if (rejection is NotAMovement.DialSide) {
+                    "If the case back is a display back, photograph straight through the " +
+                        "crystal — reflections are what usually defeat it."
+                } else {
+                    "This is checked before the identification runs, so a wrong photo costs " +
+                        "one short answer rather than a full lookup."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(12.dp)
+            )
+        }
+
+        Spacer(Modifier.height(20.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(onClick = onDiscard, modifier = Modifier.weight(1f)) {
+                Text("Close")
+            }
+            OutlinedButton(onClick = onInsist, modifier = Modifier.weight(1.3f)) {
+                Text("It is a movement")
+            }
+            Button(onClick = onRetry, modifier = Modifier.weight(1f)) {
+                Text("Retake")
             }
         }
     }
@@ -456,9 +563,42 @@ private fun EditableResult(
 
     Column {
         Spacer(Modifier.height(8.dp))
+
+        // The answer, led by its maker mark — the same mark the entry will carry in the
+        // collection, so what you approve here is what you'll recognise there.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            MakerMark(
+                maker = makerNameFrom(id.brandGuess, id.caliber, id.movementFamily),
+                size = 56.dp
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = listOfNotNull(
+                        id.caliber?.takeIf { it.isNotBlank() && !it.equals("Unknown", true) },
+                        id.movementFamily?.takeIf { it.isNotBlank() && !it.equals("Unknown", true) }
+                    ).firstOrNull() ?: "Not identified",
+                    style = MaterialTheme.typography.headlineSmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = listOfNotNull(
+                        id.movementType?.takeIf { it.isNotBlank() && !it.equals("Unknown", true) },
+                        id.productionYears?.takeIf { it.isNotBlank() && !it.equals("Unknown", true) },
+                        "${result.latencyMs / 1000}s"
+                    ).joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
         Text(
-            "${result.modelUsed} · ${result.latencyMs / 1000}s",
-            style = MaterialTheme.typography.bodySmall,
+            result.modelUsed,
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
@@ -877,21 +1017,51 @@ private fun MarkingsPanel(id: MovementIdentification) {
         Spacer(Modifier.height(6.dp))
     }
 
-    Text("Markings read", style = MaterialTheme.typography.labelMedium)
     Text(
-        if (markings.isEmpty()) {
-            "None legible — this identification is from the layout alone, so treat it with care. " +
-                "A sharper, closer shot of the engraving usually helps more than anything else."
-        } else {
-            markings.joinToString("  ·  ")
-        },
-        style = MaterialTheme.typography.bodySmall,
-        color = if (markings.isEmpty()) {
-            MaterialTheme.colorScheme.error
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        }
+        "READ OFF THE MOVEMENT",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
     )
+    Spacer(Modifier.height(8.dp))
+
+    if (markings.isEmpty()) {
+        Text(
+            "None legible — this identification is from the layout alone, so treat it with care. " +
+                "A sharper, closer shot of the engraving usually helps more than anything else.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error
+        )
+    } else {
+        // Set in monospace and boxed so a transcription can't be read as the app's own words.
+        // Wrapped by hand rather than with FlowRow, which needs an experimental opt-in that
+        // isn't worth taking on for one panel.
+        markings.chunked(2).forEach { pair ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(bottom = 6.dp)
+            ) {
+                pair.forEach { marking ->
+                    Surface(
+                        shape = MaterialTheme.shapes.extraSmall,
+                        color = MovementColors.SurfaceRaised,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp, MaterialTheme.colorScheme.outline
+                        ),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        Text(
+                            text = marking,
+                            fontFamily = Engraved,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

@@ -15,6 +15,25 @@ const val GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/mo
 /** The structured fields the model is asked to fill in. */
 data class MovementIdentification(
     /**
+     * Whether the photo shows a watch movement at all. FIRST in the schema, ahead of even the
+     * markings, for the same reason the markings come before the caliber: models generate JSON
+     * fields in order, so whatever is asked first is decided before anything downstream can
+     * rationalise it. Asked the other way round, a model that has already written "ETA 2824-2"
+     * will not then admit the picture is of a coin.
+     *
+     * Null is treated as true — an older cached answer, or a model that dropped the field, must
+     * not turn every previous result into a rejection.
+     */
+    val isWatchMovement: Boolean? = null,
+    /** When [isWatchMovement] is false: what the photo actually shows, in a few words. */
+    val subjectGuess: String? = null,
+    /**
+     * "movement", "dial", "case back" or "other". A dial-side photo of a real watch is a
+     * different mistake from a photo of a bicycle, and deserves a different sentence: the
+     * movement is there, it's just under the case.
+     */
+    val photographedSide: String? = null,
+    /**
      * Every marking the model could read, transcribed before it identifies anything. Listed
      * first in the schema on purpose: models generate JSON fields in order, so this forces it
      * to commit to what is actually written on the movement before naming a caliber.
@@ -39,6 +58,56 @@ data class MovementIdentification(
      */
     val searchQuery: String? = null
 )
+
+/**
+ * What the app should say when the photo isn't a movement, or null when it is one.
+ *
+ * Null when the field is missing, so an answer from before this check existed still saves.
+ */
+sealed class NotAMovement {
+    /** A watch, photographed from the wrong side. The movement exists, it's just not visible. */
+    data object DialSide : NotAMovement()
+
+    /** Something else entirely. [subject] is the model's own description, when it gave one. */
+    data class Other(val subject: String?) : NotAMovement()
+
+    fun headline(): String = when (this) {
+        DialSide -> "That's the dial side."
+        is Other -> "This doesn't look like a watch movement."
+    }
+
+    fun body(): String = when (this) {
+        DialSide ->
+            "The movement is behind the case back, on the other side of the watch. Open the " +
+                "case back and photograph what's underneath."
+        is Other -> {
+            val what = subject?.trim()?.takeIf { it.isNotBlank() && !it.equals("Unknown", true) }
+            if (what != null) {
+                "It appears to be $what. Nothing has been added to your collection."
+            } else {
+                "Nothing has been added to your collection."
+            }
+        }
+    }
+}
+
+/**
+ * Reads the check off an answer.
+ *
+ * Deliberately conservative: only an explicit `false` rejects. A missing field, a null, or a
+ * model that ignored the instruction all mean "carry on" — a check that fails closed would make
+ * the app refuse to save real movements whenever a model got sloppy, which is far worse than
+ * letting the occasional photo of a coin through to a review sheet the user can discard.
+ */
+fun MovementIdentification.notAMovement(): NotAMovement? {
+    if (isWatchMovement != false) return null
+    val side = photographedSide?.trim()?.lowercase().orEmpty()
+    return if (side == "dial" || side.contains("dial")) {
+        NotAMovement.DialSide
+    } else {
+        NotAMovement.Other(subjectGuess)
+    }
+}
 
 /** True when the model named the movement specifically enough to be worth looking up. */
 fun MovementIdentification.isSearchable(): Boolean {
@@ -107,6 +176,9 @@ internal val MOVEMENT_IDENTIFICATION_PROMPT = """
     invent a caliber you cannot support from what you can actually see:
 
     {
+      "isWatchMovement": boolean,
+      "subjectGuess": string,
+      "photographedSide": string,
       "visibleMarkings": [string],
       "brandGuess": string,
       "movementFamily": string,
@@ -123,7 +195,34 @@ internal val MOVEMENT_IDENTIFICATION_PROMPT = """
       "searchQuery": string
     }
 
-    START WITH THE MARKINGS. Before identifying anything, read and transcribe every piece of
+    FIRST, DECIDE WHETHER THIS IS A WATCH MOVEMENT AT ALL. Answer this before you look at
+    anything else, and answer it honestly — a wrong "yes" here produces a confident, completely
+    invented caliber, which is worse than no answer.
+
+    Set isWatchMovement to true ONLY if the image shows the mechanism of a watch or clock: plates
+    and bridges, a balance wheel or quartz module, gear train, mainspring barrel, rotor. A bare
+    movement, a movement still in its case with the back off, a movement in a holder or on a
+    bench — all true.
+
+    Set it to false for anything else, however watch-adjacent: a fully assembled watch seen from
+    the dial side, a closed case back, a bracelet or strap, a watch box, a tool, a clock face,
+    a coin, jewellery, machinery that merely looks intricate (a bicycle derailleur, a camera
+    shutter, an engine part), a screenshot, a drawing, or a photo of something unrelated
+    entirely. When you are unsure, prefer false and say what you think you are looking at.
+
+    - photographedSide: "movement" when you can see the mechanism; "dial" when this is the front
+      of an assembled watch; "case back" when it is the closed back of a watch; "other" for
+      anything else. This matters: a dial-side photo is a real watch photographed from the wrong
+      side, and the person needs telling that, not a caliber.
+    - subjectGuess: when isWatchMovement is false, what the picture actually shows, as a short
+      noun phrase a person would recognise — "a bicycle derailleur", "the dial side of a
+      wristwatch", "a coin". Leave it empty when isWatchMovement is true.
+
+    If isWatchMovement is false, still return every other field, using "Unknown" for all of them
+    and an empty visibleMarkings list. Do not guess a caliber for something that is not a
+    movement, and do not fill in specifications "in case". Put your reasoning in notes.
+
+    THEN, IF IT IS A MOVEMENT, START WITH THE MARKINGS. Before identifying anything, read and transcribe every piece of
     text or number engraved, stamped or printed on the movement: caliber numbers, brand names
     and logos, jewel counts ("25 JEWELS"), "SWISS", "UNADJUSTED", adjustment markings, serial
     numbers, import codes. List each separately in visibleMarkings, exactly as written. If a

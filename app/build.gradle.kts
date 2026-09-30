@@ -14,8 +14,8 @@ android {
         applicationId = "com.movementid.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 32
-        versionName = "3.0.1"
+        versionCode = 33
+        versionName = "3.1.0"
     }
 
     /**
@@ -24,18 +24,6 @@ android {
      * unset, so this block does nothing and Android Studio's own signing dialog still works.
      */
     val ciKeystore = System.getenv("MOVEMENTID_KEYSTORE")
-
-    // Says plainly, in the build log, whether CI signing is being wired up. Without this an
-    // unsigned APK looks identical to a signed one until someone tries to install it.
-    println(
-        if (ciKeystore.isNullOrBlank()) {
-            "MovementID: MOVEMENTID_KEYSTORE not set — release builds will be UNSIGNED."
-        } else {
-            "MovementID: signing releases with keystore at $ciKeystore " +
-                "(exists=${file(ciKeystore).exists()}, alias=${System.getenv("MOVEMENTID_KEY_ALIAS")})"
-        }
-    )
-
     signingConfigs {
         if (!ciKeystore.isNullOrBlank()) {
             create("ci") {

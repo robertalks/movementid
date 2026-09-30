@@ -1,5 +1,6 @@
 package com.movementid.app.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +23,8 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WatchLater
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -31,12 +34,14 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -44,6 +49,9 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.movementid.app.MainViewModel
 import com.movementid.app.data.MovementEntry
+import com.movementid.app.ui.MakerMark
+import com.movementid.app.ui.makerNameFrom
+import com.movementid.app.ui.theme.MovementColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -62,7 +70,37 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("MovementID") },
+                title = {
+                    Column {
+                        Text("Collection", style = MaterialTheme.typography.headlineMedium)
+                        // The maker count is the interesting half: it says how varied the
+                        // collection is, which the movement count on its own doesn't.
+                        val makers = entries
+                            .mapNotNull {
+                                makerNameFrom(it.brandGuess, it.caliber, it.movementFamily)
+                            }
+                            .map { it.lowercase() }
+                            .distinct().size
+                        if (entries.isNotEmpty()) {
+                            Text(
+                                text = buildString {
+                                    append(entries.size)
+                                    append(if (entries.size == 1) " movement" else " movements")
+                                    if (makers > 0) {
+                                        append(" · ")
+                                        append(makers)
+                                        append(if (makers == 1) " maker" else " makers")
+                                    }
+                                }.uppercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                ),
                 actions = {
                     IconButton(onClick = onSettingsClick) {
                         Icon(Icons.Filled.Settings, contentDescription = "Settings")
@@ -123,77 +161,108 @@ fun HomeScreen(
     }
 }
 
+/**
+ * A row in the collection.
+ *
+ * Led by the maker mark rather than the photograph: movement photographs all look alike at
+ * thumbnail size — a grey disc of metal — whereas the marks differ in colour and letter, so the
+ * list can be scanned rather than read. The photo still appears, smaller, on the right.
+ */
 @Composable
 private fun MovementCard(entry: MovementEntry, onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable { onClick() }) {
+    val maker = makerNameFrom(entry.brandGuess, entry.caliber, entry.movementFamily)
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = Modifier.fillMaxWidth().clickable { onClick() }
+    ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            MakerMark(maker = maker, size = 48.dp)
+            Spacer(Modifier.width(13.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = entry.title?.takeIf { it.isNotBlank() }
+                        ?: entry.caliber?.takeIf { it.isNotBlank() }
+                        ?: entry.movementFamily?.takeIf { it.isNotBlank() }
+                        ?: "Unidentified movement",
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                // Type and production years say more at a glance than the brand, which the mark
+                // has already shown, or the save date, which is rarely what you're looking for.
+                val subtitle = listOfNotNull(
+                    entry.movementType?.takeIf { it.isNotBlank() },
+                    entry.productionYears?.takeIf { it.isNotBlank() }
+                ).joinToString(" · ").ifBlank {
+                    SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(entry.timestamp))
+                }
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                val chips = buildList {
+                    if (entry.webVerified) add(Chip("Verified", MovementColors.Ok))
+                    entry.beatRateVph?.takeIf { it.isNotBlank() }
+                        ?.let { add(Chip(it.substringBefore(" ("), null)) }
+                    entry.jewelCount?.takeIf { it.isNotBlank() }
+                        ?.let { add(Chip(it, MovementColors.Gold)) }
+                    val extras = entry.additionalPhotos.orEmpty()
+                        .lines().count { it.isNotBlank() }
+                    if (extras > 0) add(Chip("${extras + 1} photos", null))
+                }
+                if (chips.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        chips.take(3).forEach { StatusChip(it) }
+                    }
+                }
+            }
+
+            Spacer(Modifier.width(10.dp))
             AsyncImage(
                 model = entry.photoPath,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.size(72.dp).clip(RoundedCornerShape(8.dp))
+                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp))
             )
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = entry.title?.takeIf { it.isNotBlank() }
-                            ?: entry.caliber?.takeIf { it.isNotBlank() }
-                            ?: "Unidentified movement",
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    if (entry.webVerified) {
-                        Spacer(Modifier.width(4.dp))
-                        Icon(
-                            Icons.Filled.CheckCircle,
-                            contentDescription = "Checked against web sources",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-                }
-                val subtitle = listOfNotNull(
-                    entry.brandGuess?.takeIf { it.isNotBlank() },
-                    entry.movementType?.takeIf { it.isNotBlank() }
-                ).joinToString(" · ")
-                if (subtitle.isNotBlank()) {
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                Text(
-                    text = SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault())
-                        .format(Date(entry.timestamp)),
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-            entry.confidence?.takeIf { it.isNotBlank() }?.let { ConfidenceChip(it) }
         }
     }
 }
 
+/** A chip's text and, when it carries a verdict, the colour that verdict earns. */
+private data class Chip(val text: String, val accent: Color?)
+
 @Composable
-private fun ConfidenceChip(confidence: String) {
-    val color = when (confidence.lowercase()) {
-        "high" -> MaterialTheme.colorScheme.primary
-        "medium" -> MaterialTheme.colorScheme.tertiary
-        else -> MaterialTheme.colorScheme.outline
+private fun StatusChip(chip: Chip) {
+    val accent = chip.accent
+    Surface(
+        shape = RoundedCornerShape(99.dp),
+        color = accent?.copy(alpha = 0.10f) ?: MaterialTheme.colorScheme.surfaceVariant,
+        border = BorderStroke(
+            1.dp,
+            accent?.copy(alpha = 0.34f) ?: MaterialTheme.colorScheme.outline
+        )
+    ) {
+        Text(
+            text = chip.text,
+            style = MaterialTheme.typography.labelMedium,
+            color = accent ?: MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+        )
     }
-    Text(
-        text = confidence,
-        style = MaterialTheme.typography.labelSmall,
-        color = color,
-        modifier = Modifier.padding(start = 8.dp)
-    )
 }
 
 @Composable
