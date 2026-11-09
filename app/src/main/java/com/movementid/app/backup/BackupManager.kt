@@ -164,9 +164,15 @@ class BackupManager(private val context: Context) {
     /** Server-side retention, so a 50 MB archive per save doesn't fill the quota. */
     private fun pruneRemote(client: WebDavClient) {
         val keep = settings.getBackupsToKeep()
+        // list() returns entries sorted by name descending; filenames encode the timestamp
+        // (movementid_YYYYMMDD_HHmmss.zip), so newest-first order is guaranteed by name sort.
         client.list().getOrNull()
             ?.drop(keep)
-            ?.forEach { old -> client.delete(old.name) }
+            ?.forEach { old ->
+                client.delete(old.name).onFailure { e ->
+                    Log.w(TAG, "Failed to prune ${old.name}: ${e.message}")
+                }
+            }
     }
 
     /** The newest archive sitting on the device, if any. */

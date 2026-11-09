@@ -61,13 +61,6 @@ sealed class LiftAngleCheck {
  */
 class LiftAngleTable(private val context: Context) {
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(45, TimeUnit.SECONDS)
-        .callTimeout(60, TimeUnit.SECONDS)
-        .build()
-
-    private val gson = Gson()
     private val cacheFile: File get() = File(context.filesDir, CACHE_NAME)
 
     /** Looks the caliber up, fetching the table first if it isn't cached yet. */
@@ -187,13 +180,13 @@ class LiftAngleTable(private val context: Context) {
         identification: MovementIdentification
     ): MatchOutcome {
         val candidates = listOfNotNull(
-            identification.caliber?.takeIf { it.isUsableAngle() },
-            identification.movementFamily?.takeIf { it.isUsableAngle() }
+            identification.caliber?.takeIf { it.isUsableValue() },
+            identification.movementFamily?.takeIf { it.isUsableValue() }
         ).flatMap { it.caliberTokens() }.distinct()
 
         if (candidates.isEmpty()) return MatchOutcome.None
 
-        val brand = identification.brandGuess?.takeIf { it.isUsableAngle() }
+        val brand = identification.brandGuess?.takeIf { it.isUsableValue() }
 
         for (candidate in candidates) {
             val matches = entries.filter { it.caliber.normalizeKey() == candidate }
@@ -252,6 +245,14 @@ class LiftAngleTable(private val context: Context) {
 
         private val mutex = Mutex()
         @Volatile private var memory: List<LiftAngleEntry>? = null
+
+        private val client = OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(45, TimeUnit.SECONDS)
+            .callTimeout(60, TimeUnit.SECONDS)
+            .build()
+
+        private val gson = Gson()
     }
 }
 
@@ -259,6 +260,10 @@ private fun String.stripTags(): String =
     replace(Regex("<[^>]+>"), " ").replace("&nbsp;", " ").replace(Regex("\\s+"), " ")
 
 private fun String.isUsableAngle(): Boolean =
+    isNotBlank() && !equals("Unknown", true) && !equals("N/A", true)
+
+/** Same sentinel check, but for name/caliber strings rather than angle values. */
+private fun String.isUsableValue(): Boolean =
     isNotBlank() && !equals("Unknown", true) && !equals("N/A", true)
 
 /** Pulls a number out of "52", "52.0", "52°" or "52 degrees". */

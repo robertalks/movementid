@@ -6,11 +6,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
-import java.util.concurrent.TimeUnit
 
 // --- Gemini wire format (camelCase) ---
 
@@ -94,13 +92,7 @@ class GeminiClient(
     private val model: String = GeminiModels.DEFAULT
 ) {
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .callTimeout(90, TimeUnit.SECONDS)
-        .build()
-
+    private val client = sharedHttpClient
     private val gson = Gson()
 
     /**

@@ -281,7 +281,7 @@ private fun AnalyzingOverlay(stage: String, onCancel: () -> Unit) {
             dots = (dots + 1) % 4
         }
     }
-    val baseStage = stage.lines().first().trimEnd('…', '.', ' ')
+    val baseStage = stage.lines().first().trimEnd { it == '…' || it == ' ' }
     val restOfStage = stage.lines().drop(1).joinToString("\n")
 
     Box(

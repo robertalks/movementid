@@ -3,13 +3,12 @@ package com.movementid.app.network
 import android.util.Log
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
-import java.util.concurrent.TimeUnit
 
 // --- Chat Completions (identification) ---
 
@@ -92,13 +91,7 @@ class OpenAiClient(
     private val model: String
 ) {
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(90, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .callTimeout(120, TimeUnit.SECONDS)
-        .build()
-
+    private val client = sharedHttpClient
     private val gson = Gson()
 
     suspend fun identify(
@@ -109,59 +102,75 @@ class OpenAiClient(
         val startedAt = System.currentTimeMillis()
         val encoded = imageFiles.map { ImageEncoder.encodeDownscaledBase64(it, maxEdge) }
 
-        try {
-            val parts = buildList {
-                add(ContentPart(type = "text", text = buildPrompt(feedback, imageFiles.size)))
-                encoded.forEach {
-                    add(ContentPart(type = "image_url", image_url = ImageUrl("data:image/jpeg;base64,$it")))
+        var lastError: String? = null
+
+        // Two attempts: transient overload (429, 503) usually clears quickly.
+        repeat(2) { attempt ->
+            try {
+                val parts = buildList {
+                    add(ContentPart(type = "text", text = buildPrompt(feedback, imageFiles.size)))
+                    encoded.forEach {
+                        add(ContentPart(type = "image_url", image_url = ImageUrl("data:image/jpeg;base64,$it")))
+                    }
                 }
-            }
-            val request = ChatRequest(
-                model = model,
-                messages = listOf(ChatMessage(role = "user", content = parts))
-            )
-
-            val body = gson.toJson(request).toRequestBody("application/json".toMediaType())
-            val httpRequest = Request.Builder()
-                .url("https://api.openai.com/v1/chat/completions")
-                .addHeader("Authorization", "Bearer $apiKey")
-                .addHeader("Content-Type", "application/json")
-                .post(body)
-                .build()
-
-            client.newCall(httpRequest).execute().use { response ->
-                val responseText = response.body?.string().orEmpty()
-                val parsed = runCatching { gson.fromJson(responseText, ChatResponse::class.java) }.getOrNull()
-
-                parsed?.error?.let {
-                    return@withContext Result.failure(Exception("[$model] ${it.message}"))
-                }
-                if (!response.isSuccessful) {
-                    Log.w(TAG, "Identify HTTP ${response.code}: ${responseText.take(400)}")
-                    return@withContext Result.failure(
-                        Exception("[$model] HTTP ${response.code}: ${responseText.take(300)}")
-                    )
-                }
-
-                val text = parsed?.choices?.firstOrNull()?.message?.content
-                    ?: return@withContext Result.failure(Exception("[$model] Empty response"))
-
-                val identification = gson.fromJson(
-                    extractJsonObject(text),
-                    MovementIdentification::class.java
-                ) ?: return@withContext Result.failure(Exception("[$model] Could not parse JSON"))
-
-                Result.success(
-                    IdentificationResult(
-                        identification = identification,
-                        modelUsed = model,
-                        latencyMs = System.currentTimeMillis() - startedAt
-                    )
+                val request = ChatRequest(
+                    model = model,
+                    messages = listOf(ChatMessage(role = "user", content = parts))
                 )
+
+                val body = gson.toJson(request).toRequestBody("application/json".toMediaType())
+                val httpRequest = Request.Builder()
+                    .url("https://api.openai.com/v1/chat/completions")
+                    .addHeader("Authorization", "Bearer $apiKey")
+                    .addHeader("Content-Type", "application/json")
+                    .post(body)
+                    .build()
+
+                client.newCall(httpRequest).execute().use { response ->
+                    val responseText = response.body?.string().orEmpty()
+                    val parsed = runCatching { gson.fromJson(responseText, ChatResponse::class.java) }.getOrNull()
+
+                    parsed?.error?.let {
+                        lastError = "[$model] ${it.message}"
+                        return@use
+                    }
+                    if (!response.isSuccessful) {
+                        Log.w(TAG, "Identify HTTP ${response.code}: ${responseText.take(400)}")
+                        lastError = "[$model] HTTP ${response.code}: ${responseText.take(300)}"
+                        if (attempt == 0 && isTransient(lastError)) delay(2000)
+                        return@use
+                    }
+
+                    val text = parsed?.choices?.firstOrNull()?.message?.content
+                        ?: run { lastError = "[$model] Empty response"; return@use }
+
+                    val identification = gson.fromJson(
+                        extractJsonObject(text),
+                        MovementIdentification::class.java
+                    ) ?: run { lastError = "[$model] Could not parse JSON"; return@use }
+
+                    return@withContext Result.success(
+                        IdentificationResult(
+                            identification = identification,
+                            modelUsed = model,
+                            latencyMs = System.currentTimeMillis() - startedAt
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                lastError = "[$model] ${e.message ?: e.javaClass.simpleName}"
+                if (attempt == 0 && isTransient(lastError)) delay(2000)
             }
-        } catch (e: Exception) {
-            Result.failure(Exception("[$model] ${e.message ?: e.javaClass.simpleName}", e))
         }
+
+        Result.failure(Exception(lastError ?: "OpenAI request failed"))
+    }
+
+    private fun isTransient(message: String?): Boolean {
+        if (message.isNullOrBlank()) return false
+        val m = message.lowercase()
+        return listOf("503", "429", "overloaded", "high demand", "unavailable", "timeout", "timed out")
+            .any { m.contains(it) }
     }
 
     /**

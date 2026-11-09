@@ -1,17 +1,5 @@
 package com.movementid.app.network
 
-/** Gemini models offered in Settings, newest first. */
-val GEMINI_MODELS = listOf(
-    "gemini-3.8-flash",
-    "gemini-3.7-flash",
-    "gemini-3.6-flash",
-    "gemini-3.5-flash"
-)
-
-const val DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
-
-const val GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models"
-
 /** The structured fields the model is asked to fill in. */
 data class MovementIdentification(
     /**
