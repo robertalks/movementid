@@ -3,6 +3,7 @@ package com.movementid.app.ui.screens
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -39,6 +41,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -48,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
@@ -58,6 +62,8 @@ import com.movementid.app.data.photoList
 import com.movementid.app.network.CaliberSearch
 import com.movementid.app.network.MovementIdentification
 import com.movementid.app.data.MovementEntry
+import com.movementid.app.ui.MakerMark
+import com.movementid.app.ui.makerNameFrom
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -150,7 +156,7 @@ fun DetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Details") },
+                title = {},
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -162,7 +168,10 @@ fun DetailScreen(
                             Icon(Icons.Filled.Delete, contentDescription = "Delete")
                         }
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                )
             )
         }
     ) { padding ->
@@ -191,30 +200,72 @@ fun DetailScreen(
             )
         }
 
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
             item {
                 val photos = current.photoList()
-                val uriOpener = LocalUriHandler.current
                 var shown by remember(current.id) { mutableStateOf(0) }
                 val shownIndex = shown.coerceIn(0, (photos.size - 1).coerceAtLeast(0))
-
                 var viewerOpen by remember { mutableStateOf(false) }
-                AsyncImage(
-                    model = photos.getOrNull(shownIndex) ?: current.photoPath,
-                    contentDescription = "Tap to view full size",
-                    contentScale = ContentScale.Crop,
+                val maker = makerNameFrom(current.brandGuess, current.caliber, current.movementFamily)
+
+                // Hero — full-width photo with caliber + maker mark overlaid at the bottom
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(260.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .aspectRatio(4f / 3f)
                         .clickable { viewerOpen = true }
-                )
-                Text(
-                    "Tap to view full size and zoom",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
+                ) {
+                    AsyncImage(
+                        model = photos.getOrNull(shownIndex) ?: current.photoPath,
+                        contentDescription = "Tap to view full size",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    // Scrim + identity overlay
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter)
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(Color.Transparent, Color.Black.copy(alpha = 0.72f))
+                                )
+                            )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            MakerMark(maker = maker, size = 44.dp)
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = listOfNotNull(
+                                        caliber.trim().ifBlank { null },
+                                        family.trim().ifBlank { null }
+                                    ).firstOrNull() ?: "Unidentified",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    color = Color.White,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                )
+                                val sub = listOfNotNull(
+                                    brand.trim().ifBlank { null },
+                                    type.trim().ifBlank { null }
+                                ).joinToString(" · ")
+                                if (sub.isNotBlank()) {
+                                    Text(
+                                        text = sub,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color.White.copy(alpha = 0.75f),
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if (viewerOpen) {
                     PhotoViewer(
                         photos = photos,
@@ -223,34 +274,42 @@ fun DetailScreen(
                     )
                 }
 
-                // Thumbnail strip: several angles of the same movement, e.g. case back plus
-                // dial side, or the same caliber from another watch with different branding.
+                // Thumbnail strip
+                if (photos.size > 1) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        photos.forEachIndexed { index, path ->
+                            AsyncImage(
+                                model = path,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .border(
+                                        width = if (index == shownIndex) 2.dp else 0.dp,
+                                        color = if (index == shownIndex) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                        shape = RoundedCornerShape(6.dp)
+                                    )
+                                    .clickable { shown = index }
+                            )
+                        }
+                    }
+                }
+
+                // Add photo button
                 Spacer(Modifier.height(8.dp))
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.End
                 ) {
-                    photos.forEachIndexed { index, path ->
-                        AsyncImage(
-                            model = path,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .border(
-                                    width = if (index == shownIndex) 2.dp else 0.dp,
-                                    color = if (index == shownIndex) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        Color.Transparent
-                                    },
-                                    shape = RoundedCornerShape(6.dp)
-                                )
-                                .clickable { shown = index }
-                        )
-                    }
                     OutlinedButton(
                         onClick = {
                             photoPickerLauncher.launch(
@@ -261,158 +320,181 @@ fun DetailScreen(
                     ) {
                         Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Photo", style = MaterialTheme.typography.labelMedium)
+                        Text("Add photo", style = MaterialTheme.typography.labelMedium)
                     }
                 }
 
                 Spacer(Modifier.height(16.dp))
 
-                EditField("Title", title, { title = it }, "e.g. Seiko NH35 in the diver")
-                Spacer(Modifier.height(16.dp))
-                HorizontalDivider()
-                Spacer(Modifier.height(12.dp))
-                Text("Identification", style = MaterialTheme.typography.titleSmall)
-                Text(
-                    "Everything here is editable — correct whatever the AI got wrong.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(12.dp))
-            }
-
-            item { EditField("Brand", brand, { brand = it }, "ETA, Seiko, Miyota…") }
-            item { EditField("Movement family", family, { family = it }, "ETA 2824-2") }
-            item { EditField("Caliber", caliber, { caliber = it }, "NH35A") }
-            item { EditField("Type", type, { type = it }, "Automatic / Manual wind / Quartz") }
-            item { EditField("Size", size, { size = it }, "25.6mm (11 1/2 lignes)") }
-            item { EditField("Beat rate", beatRate, { beatRate = it }, "28800 vph (4Hz)") }
-            item { EditField("Power reserve", powerReserve, { powerReserve = it }, "41 hours") }
-            item { EditField("Jewels", jewels, { jewels = it }, "24 jewels") }
-            item {
-                EditField("Lift angle", liftAngle, { liftAngle = it }, "52° — for your timegrapher")
-                current.liftAngleSource?.takeIf { it.isNotBlank() }?.let { source ->
-                    Text(
-                        text = source,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
-                    )
-                }
-            }
-            item { EditField("Years produced", years, { years = it }, "1996-2010, or 1970s") }
-
-            item {
-                Spacer(Modifier.height(8.dp))
-                EditField(
-                    "Markings on the movement", markings, { markings = it },
-                    "One per line: 2824-2, 25 JEWELS, SWISS", minLines = 2
-                )
-                Spacer(Modifier.height(8.dp))
-                EditField("Your notes", notes, { notes = it }, "Which watch it came from, service history…", minLines = 3)
-                Spacer(Modifier.height(16.dp))
-                // Searches what's currently in the fields, so a correction just typed is what
-                // gets looked up rather than the AI's original guess.
-                val uriHandler = LocalUriHandler.current
-                val searchUrl = CaliberSearch.urlFor(
-                    MovementIdentification(
-                        brandGuess = brand.trim().ifBlank { null },
-                        movementFamily = family.trim().ifBlank { null },
-                        caliber = caliber.trim().ifBlank { null }
-                    )
-                )
-                searchUrl?.let { url ->
-                    OutlinedButton(
-                        onClick = { runCatching { uriHandler.openUri(url) } },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Look this caliber up on Google")
-                    }
-                    Spacer(Modifier.height(8.dp))
-                }
-
-                // Ranfft carries per-caliber specs and reference photos, which is usually the
-                // fastest way to confirm an identification by eye.
-                CaliberSearch.ranfftUrlFor(
-                    MovementIdentification(
-                        brandGuess = brand.trim().ifBlank { null },
-                        movementFamily = family.trim().ifBlank { null },
-                        caliber = caliber.trim().ifBlank { null }
-                    )
-                )?.let { url ->
-                    OutlinedButton(
-                        onClick = { runCatching { uriHandler.openUri(url) } },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Find it in the Ranfft archive")
-                    }
-                    Spacer(Modifier.height(8.dp))
-                }
-
-                Button(
-                    onClick = { persist(); onBack() },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Save changes")
-                }
-                Spacer(Modifier.height(24.dp))
-            }
-
-            item {
-                current.aiNotes?.takeIf { it.isNotBlank() }?.let {
+                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    EditField("Title", title, { title = it }, "e.g. Seiko NH35 in the diver")
+                    Spacer(Modifier.height(16.dp))
                     HorizontalDivider()
                     Spacer(Modifier.height(12.dp))
-                    Text("AI reasoning", style = MaterialTheme.typography.titleSmall)
-                    Spacer(Modifier.height(4.dp))
+                    Text("Identification", style = MaterialTheme.typography.titleSmall)
                     Text(
-                        it,
+                        "Everything here is editable — correct whatever the AI got wrong.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(Modifier.height(16.dp))
-                }
-
-                HorizontalDivider()
-                Spacer(Modifier.height(12.dp))
-                Text("Scan details", style = MaterialTheme.typography.titleSmall)
-                Spacer(Modifier.height(4.dp))
-                MetaRow("Model", current.modelUsed)
-                MetaRow("Took", current.latencyMs?.let { "${it / 1000}s" })
-                MetaRow("Google Search check", if (current.webVerified) "Yes" else "No")
-                MetaRow(
-                    "Scanned",
-                    SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault())
-                        .format(Date(current.timestamp))
-                )
-
-                current.sources?.takeIf { it.isNotBlank() }?.let { sources ->
                     Spacer(Modifier.height(12.dp))
-                    Text("Sources — tap to open", style = MaterialTheme.typography.titleSmall)
-                    Spacer(Modifier.height(4.dp))
-                    val uriHandler = LocalUriHandler.current
-                    sources.lines().filter { it.isNotBlank() }.forEach { line ->
-                        // Stored as "Title — url"; split so the row can open the link.
-                        val url = line.substringAfterLast(" — ", "").trim()
-                        val label = line.substringBeforeLast(" — ").trim()
+
+                    EditField("Movement family", family, { family = it }, "ETA 2824-2")
+                    EditField("Caliber", caliber, { caliber = it }, "NH35A")
+
+                    // Two-column grid for paired spec fields
+                    SpecGridRow(
+                        "Brand", brand, { brand = it }, "ETA, Seiko…",
+                        "Type", type, { type = it }, "Automatic"
+                    )
+                    SpecGridRow(
+                        "Beat rate", beatRate, { beatRate = it }, "28800 vph",
+                        "Jewels", jewels, { jewels = it }, "24 jewels"
+                    )
+                    SpecGridRow(
+                        "Size", size, { size = it }, "25.6mm",
+                        "Power reserve", powerReserve, { powerReserve = it }, "41 hours"
+                    )
+                    SpecGridRow(
+                        "Lift angle", liftAngle, { liftAngle = it }, "52°",
+                        "Years produced", years, { years = it }, "1996-2010"
+                    )
+                    current.liftAngleSource?.takeIf { it.isNotBlank() }?.let { source ->
                         Text(
-                            text = label,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (url.startsWith("http")) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable(enabled = url.startsWith("http")) {
-                                    runCatching { uriHandler.openUri(url) }
-                                }
-                                .padding(vertical = 5.dp)
+                            text = source,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
                         )
                     }
+
+                    Spacer(Modifier.height(8.dp))
+                    EditField(
+                        "Markings on the movement", markings, { markings = it },
+                        "One per line: 2824-2, 25 JEWELS, SWISS", minLines = 2
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    EditField("Your notes", notes, { notes = it }, "Which watch it came from, service history…", minLines = 3)
+                    Spacer(Modifier.height(16.dp))
+
+                    val uriHandler = LocalUriHandler.current
+                    val searchUrl = CaliberSearch.urlFor(
+                        MovementIdentification(
+                            brandGuess = brand.trim().ifBlank { null },
+                            movementFamily = family.trim().ifBlank { null },
+                            caliber = caliber.trim().ifBlank { null }
+                        )
+                    )
+                    searchUrl?.let { url ->
+                        OutlinedButton(
+                            onClick = { runCatching { uriHandler.openUri(url) } },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Look this caliber up on Google") }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    CaliberSearch.ranfftUrlFor(
+                        MovementIdentification(
+                            brandGuess = brand.trim().ifBlank { null },
+                            movementFamily = family.trim().ifBlank { null },
+                            caliber = caliber.trim().ifBlank { null }
+                        )
+                    )?.let { url ->
+                        OutlinedButton(
+                            onClick = { runCatching { uriHandler.openUri(url) } },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Find it in the Ranfft archive") }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    Button(
+                        onClick = { persist(); onBack() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Save changes") }
+                    Spacer(Modifier.height(24.dp))
                 }
-                Spacer(Modifier.height(32.dp))
+            }
+
+            item {
+                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    current.aiNotes?.takeIf { it.isNotBlank() }?.let {
+                        HorizontalDivider()
+                        Spacer(Modifier.height(12.dp))
+                        Text("AI reasoning", style = MaterialTheme.typography.titleSmall)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(16.dp))
+                    }
+
+                    HorizontalDivider()
+                    Spacer(Modifier.height(12.dp))
+                    Text("Scan details", style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(4.dp))
+                    MetaRow("Model", current.modelUsed)
+                    MetaRow("Took", current.latencyMs?.let { "${it / 1000}s" })
+                    MetaRow("Google Search check", if (current.webVerified) "Yes" else "No")
+                    MetaRow(
+                        "Scanned",
+                        SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault())
+                            .format(Date(current.timestamp))
+                    )
+
+                    current.sources?.takeIf { it.isNotBlank() }?.let { sources ->
+                        Spacer(Modifier.height(12.dp))
+                        Text("Sources — tap to open", style = MaterialTheme.typography.titleSmall)
+                        Spacer(Modifier.height(4.dp))
+                        val uriHandler = LocalUriHandler.current
+                        sources.lines().filter { it.isNotBlank() }.forEach { line ->
+                            val url = line.substringAfterLast(" — ", "").trim()
+                            val label = line.substringBeforeLast(" — ").trim()
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (url.startsWith("http")) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(enabled = url.startsWith("http")) {
+                                        runCatching { uriHandler.openUri(url) }
+                                    }
+                                    .padding(vertical = 5.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(32.dp))
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun SpecGridRow(
+    label1: String, value1: String, onChange1: (String) -> Unit, placeholder1: String,
+    label2: String, value2: String, onChange2: (String) -> Unit, placeholder2: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        OutlinedTextField(
+            value = value1,
+            onValueChange = onChange1,
+            label = { Text(label1) },
+            placeholder = { Text(placeholder1) },
+            singleLine = true,
+            modifier = Modifier.weight(1f).padding(vertical = 4.dp)
+        )
+        OutlinedTextField(
+            value = value2,
+            onValueChange = onChange2,
+            label = { Text(label2) },
+            placeholder = { Text(placeholder2) },
+            singleLine = true,
+            modifier = Modifier.weight(1f).padding(vertical = 4.dp)
+        )
     }
 }
 

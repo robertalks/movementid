@@ -2,8 +2,10 @@ package com.movementid.app.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,7 +25,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,6 +33,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
@@ -100,244 +102,223 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            Text("Provider", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.selectableGroup()) {
-                AiProvider.entries.forEach { option ->
-                    Row(
-                        modifier = Modifier
-                            .selectable(
-                                selected = provider == option,
-                                role = Role.RadioButton,
-                                onClick = { provider = option; saved = false }
-                            )
-                            .padding(end = 16.dp, top = 4.dp, bottom = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(selected = provider == option, onClick = null)
-                        Spacer(Modifier.width(6.dp))
-                        Text(option.displayName, style = MaterialTheme.typography.bodyMedium)
+            // --- AI Provider card ---
+            SettingsCard("AI Provider") {
+                Text("Provider", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.selectableGroup()) {
+                    AiProvider.entries.forEach { option ->
+                        Row(
+                            modifier = Modifier
+                                .selectable(
+                                    selected = provider == option,
+                                    role = Role.RadioButton,
+                                    onClick = { provider = option; saved = false }
+                                )
+                                .padding(end = 16.dp, top = 4.dp, bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = provider == option, onClick = null)
+                            Spacer(Modifier.width(6.dp))
+                            Text(option.displayName, style = MaterialTheme.typography.bodyMedium)
+                        }
                     }
                 }
-            }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                provider.blurb,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(Modifier.height(16.dp))
-            Text("${provider.displayName} API key", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "Get one at ${provider.keyUrl}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
-                value = apiKey,
-                onValueChange = { apiKey = it; saved = false },
-                label = { Text("API key") },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(24.dp))
-            HorizontalDivider()
-            Spacer(Modifier.height(16.dp))
-
-            Text("Models", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "Pick one, or several to compare. With more than one selected, each is asked " +
-                    "independently and the answers appear side by side — where they agree is a " +
-                    "better signal than any single model's confidence score.\n\nEach selected " +
-                    "model costs one request per scan, so four models is four requests against " +
-                    "your free quota for a single photo. If you're hitting quota limits, select " +
-                    "fewer.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(8.dp))
-
-            provider.defaultModels.forEach { model ->
-                val checked = model in selected
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .toggleable(
-                            value = checked,
-                            role = Role.Checkbox,
-                            onValueChange = { on ->
-                                if (on) selected.add(model) else selected.remove(model)
-                                saved = false
-                            }
-                        )
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(checked = checked, onCheckedChange = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(model, style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-
-            if (selected.isEmpty()) {
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Nothing selected — ${provider.defaultModels.first()} will be used.",
+                    provider.blurb,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
 
-            Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
-                value = customModels,
-                onValueChange = { customModels = it; saved = false },
-                label = { Text("Other model ids (optional)") },
-                placeholder = { Text(provider.defaultModels.joinToString(", ")) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "Comma-separated. Anything you add here is used as-is, so a newly released " +
-                    "model works without waiting for an app update.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+                Spacer(Modifier.height(16.dp))
+                Text("${provider.displayName} API key", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Get one at ${provider.keyUrl}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = apiKey,
+                    onValueChange = { apiKey = it; saved = false },
+                    label = { Text("API key") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-            Spacer(Modifier.height(24.dp))
-            HorizontalDivider()
-            Spacer(Modifier.height(16.dp))
-
-            Text("Caliber lookup", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "Every result gets a Search Google button that opens the caliber in your " +
-                    "browser. That needs no key and no quota, and it's usually the fastest way " +
-                    "to confirm specs — you read the actual sources instead of trusting a " +
-                    "second AI pass.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(12.dp))
-
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Let ${provider.displayName} check the specs", style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(16.dp))
+                Text("Models", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Pick one, or several to compare. With more than one selected, each is asked " +
+                        "independently and the answers appear side by side — where they agree is a " +
+                        "better signal than any single model's confidence score.\n\nEach selected " +
+                        "model costs one request per scan, so four models is four requests against " +
+                        "your free quota for a single photo. If you're hitting quota limits, select " +
+                        "fewer.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+                provider.defaultModels.forEach { model ->
+                    val checked = model in selected
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .toggleable(
+                                value = checked,
+                                role = Role.Checkbox,
+                                onValueChange = { on ->
+                                    if (on) selected.add(model) else selected.remove(model)
+                                    saved = false
+                                }
+                            )
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(checked = checked, onCheckedChange = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(model, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                if (selected.isEmpty()) {
+                    Spacer(Modifier.height(4.dp))
                     Text(
-                        "The model searches the web and rewrites its own figures after " +
-                            "identifying a photo. Off by default because it costs an extra " +
-                            "request per scan. Each result also has a button to do this on " +
-                            "demand instead.",
+                        "Nothing selected — ${provider.defaultModels.first()} will be used.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
-                Spacer(Modifier.width(12.dp))
-                Switch(
-                    checked = verifyWithSearch,
-                    onCheckedChange = { verifyWithSearch = it; saved = false }
-                )
-            }
-
-            Spacer(Modifier.height(12.dp))
-            OutlinedButton(
-                onClick = {
-                    // Save first, so the test uses what's on screen rather than a stale key.
-                    settings.setProvider(provider)
-                    settings.setApiKey(provider, apiKey)
-                    settings.setCustomModels(provider, customModels)
-                    settings.setSelectedModels(provider, selected.toList())
-                    settings.setVerifyWithSearch(verifyWithSearch)
-                    viewModel.testGoogleSearch()
-                },
-                enabled = !testRunning,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(if (testRunning) "Testing…" else "Test ${provider.displayName} search")
-            }
-
-            testResult?.let { result ->
                 Spacer(Modifier.height(8.dp))
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp)) {
-                        Text(result, style = MaterialTheme.typography.bodySmall)
-                        Spacer(Modifier.height(8.dp))
-                        TextButton(onClick = { viewModel.clearSearchTest() }) { Text("Dismiss") }
+                OutlinedTextField(
+                    value = customModels,
+                    onValueChange = { customModels = it; saved = false },
+                    label = { Text("Other model ids (optional)") },
+                    placeholder = { Text(provider.defaultModels.joinToString(", ")) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Comma-separated. Anything you add here is used as-is, so a newly released " +
+                        "model works without waiting for an app update.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        settings.setProvider(provider)
+                        settings.setApiKey(provider, apiKey)
+                        settings.setCustomModels(provider, customModels)
+                        settings.setSelectedModels(provider, selected.toList())
+                        settings.setVerifyWithSearch(verifyWithSearch)
+                        saved = true
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Save") }
+                if (saved) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "Saved.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            // --- Web verification card ---
+            SettingsCard("Caliber Lookup") {
+                Text(
+                    "Every result gets a Search Google button that opens the caliber in your " +
+                        "browser. That needs no key and no quota, and it's usually the fastest way " +
+                        "to confirm specs — you read the actual sources instead of trusting a " +
+                        "second AI pass.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Let ${provider.displayName} check the specs", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "The model searches the web and rewrites its own figures after " +
+                                "identifying a photo. Off by default because it costs an extra " +
+                                "request per scan.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Switch(
+                        checked = verifyWithSearch,
+                        onCheckedChange = { verifyWithSearch = it; saved = false }
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = {
+                        settings.setProvider(provider)
+                        settings.setApiKey(provider, apiKey)
+                        settings.setCustomModels(provider, customModels)
+                        settings.setSelectedModels(provider, selected.toList())
+                        settings.setVerifyWithSearch(verifyWithSearch)
+                        viewModel.testGoogleSearch()
+                    },
+                    enabled = !testRunning,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text(if (testRunning) "Testing…" else "Test ${provider.displayName} search") }
+                testResult?.let { result ->
+                    Spacer(Modifier.height(8.dp))
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text(result, style = MaterialTheme.typography.bodySmall)
+                            Spacer(Modifier.height(8.dp))
+                            TextButton(onClick = { viewModel.clearSearchTest() }) { Text("Dismiss") }
+                        }
                     }
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
-            Button(
-                onClick = {
-                    settings.setProvider(provider)
-                    settings.setApiKey(provider, apiKey)
-                    settings.setCustomModels(provider, customModels)
-                    settings.setSelectedModels(provider, selected.toList())
-                    settings.setVerifyWithSearch(verifyWithSearch)
-                    saved = true
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Save")
-            }
-
-            if (saved) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Saved.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            Spacer(Modifier.height(24.dp))
-            HorizontalDivider()
-            Spacer(Modifier.height(16.dp))
-
-            var alwaysSharp by remember { mutableStateOf(settings.getAlwaysSharp()) }
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Always use maximum resolution", style = MaterialTheme.typography.bodyMedium)
-                    Text(
-                        "Off by default. Scans go at a resolution that reads most engraving at " +
-                            "lower cost, and a scan that reads no markings offers a sharper " +
-                            "retry. Turn this on to always send full size — uses your free " +
-                            "quota noticeably faster.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            // --- Image quality card ---
+            SettingsCard("Image Quality") {
+                var alwaysSharp by remember { mutableStateOf(settings.getAlwaysSharp()) }
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Always use maximum resolution", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "Off by default. Scans go at a resolution that reads most engraving at " +
+                                "lower cost, and a scan that reads no markings offers a sharper " +
+                                "retry. Turn this on to always send full size — uses your free " +
+                                "quota noticeably faster.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Switch(
+                        checked = alwaysSharp,
+                        onCheckedChange = { alwaysSharp = it; settings.setAlwaysSharp(it) }
                     )
                 }
-                Spacer(Modifier.width(12.dp))
-                Switch(
-                    checked = alwaysSharp,
-                    onCheckedChange = { alwaysSharp = it; settings.setAlwaysSharp(it) }
-                )
             }
 
-            Spacer(Modifier.height(24.dp))
-            HorizontalDivider()
-            Spacer(Modifier.height(16.dp))
+            // --- Backup card ---
+            SettingsCard("Backup") {
+                BackupSection(viewModel)
+            }
 
-            BackupSection(viewModel)
-
-            Spacer(Modifier.height(24.dp))
-            // Shown so it's possible to tell at a glance whether a rebuild actually reached the
-            // phone — a failed build leaves the previous APK installed and running.
+            Spacer(Modifier.height(8.dp))
             Text(
                 "MovementID ${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
             Text(
                 "Your keys, photos and saved movements never leave this device except for the " +
                     "direct call to the provider you choose.",
@@ -349,6 +330,22 @@ fun SettingsScreen(viewModel: MainViewModel, onBack: () -> Unit) {
     }
 }
 
+
+@Composable
+private fun SettingsCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(12.dp))
+            content()
+        }
+    }
+}
 
 /**
  * Backup settings.

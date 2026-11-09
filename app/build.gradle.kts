@@ -14,8 +14,8 @@ android {
         applicationId = "com.movementid.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 34
-        versionName = "3.2.0"
+        versionCode = 35
+        versionName = "3.3.0"
     }
 
     /**
@@ -77,6 +77,7 @@ dependencies {
     implementation("androidx.core:core-splashscreen:1.0.1")
 
     implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-text-google-fonts")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")

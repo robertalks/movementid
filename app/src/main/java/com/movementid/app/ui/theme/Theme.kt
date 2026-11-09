@@ -8,10 +8,14 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.googlefonts.Font
+import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.movementid.app.R
 
 /**
  * One palette, dark only.
@@ -75,12 +79,23 @@ private val Scheme = darkColorScheme(
  *   mistaken for the app's own prose;
  * - sans for everything else.
  *
- * All three are system families. Bundling Instrument Serif and JetBrains Mono would match the
- * mockup more exactly at the cost of ~400 KB in the APK, and can be swapped in later without
- * touching any screen — only this file names a family.
+ * Google Fonts are used with system-family fallbacks, so the app looks good even without GMS.
  */
-val Display = FontFamily.Serif
-val Engraved = FontFamily.Monospace
+private val fontProvider = runCatching {
+    GoogleFont.Provider(
+        providerAuthority = "com.google.android.gms.fonts",
+        providerPackage = "com.google.android.gms",
+        certificates = R.array.com_google_android_gms_fonts_certs
+    )
+}.getOrNull()
+
+val Display: FontFamily = fontProvider?.let {
+    FontFamily(Font(GoogleFont("Instrument Serif"), it))
+} ?: FontFamily.Serif
+
+val Engraved: FontFamily = fontProvider?.let {
+    FontFamily(Font(GoogleFont("JetBrains Mono"), it))
+} ?: FontFamily.Monospace
 
 private val AppTypography = Typography(
     displaySmall = TextStyle(

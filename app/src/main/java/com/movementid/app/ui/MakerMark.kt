@@ -69,7 +69,35 @@ private val PINNED: Map<String, Int> = mapOf(
     "sellita" to 6,
     "aschild" to 7,
     "unitas" to 8,
-    "peseux" to 9
+    "peseux" to 9,
+    // Extended set — common in collections, stable colours matter for recognition
+    "rolex" to 2,
+    "iwc" to 0,
+    "jaeger" to 3,
+    "jaegerlecoultre" to 3,
+    "jlc" to 3,
+    "patek" to 1,
+    "patekphilippe" to 1,
+    "vacheron" to 6,
+    "vacheronconstantin" to 6,
+    "girard" to 5,
+    "girardperregaux" to 5,
+    "tissot" to 9,
+    "citizen" to 4,
+    "bulova" to 7,
+    "hamilton" to 8,
+    "waltham" to 0,
+    "elgin" to 1,
+    "helvetia" to 4,
+    "ebel" to 2,
+    "tagheuer" to 3,
+    "breitling" to 5,
+    "zenith" to 8,
+    "tudor" to 7,
+    "doxa" to 6,
+    "certina" to 9,
+    "mido" to 5,
+    "oris" to 3
 )
 
 /**
@@ -90,7 +118,35 @@ private val GLYPHS: Map<String, String> = mapOf(
     "felsa" to "Fe",
     "fhf" to "FHF",
     "eta" to "ETA",
-    "aspull" to "A"
+    "aspull" to "A",
+    // Extended set
+    "rolex" to "R",
+    "iwc" to "IWC",
+    "jaeger" to "JLC",
+    "jaegerlecoultre" to "JLC",
+    "jlc" to "JLC",
+    "patek" to "PP",
+    "patekphilippe" to "PP",
+    "vacheron" to "VC",
+    "vacheronconstantin" to "VC",
+    "girard" to "GP",
+    "girardperregaux" to "GP",
+    "tissot" to "T",
+    "citizen" to "Ci",
+    "bulova" to "Bu",
+    "hamilton" to "H",
+    "waltham" to "Wa",
+    "elgin" to "El",
+    "helvetia" to "Hv",
+    "ebel" to "Eb",
+    "tagheuer" to "TH",
+    "breitling" to "Br",
+    "zenith" to "Z",
+    "tudor" to "Tu",
+    "doxa" to "D",
+    "certina" to "Ce",
+    "mido" to "M",
+    "oris" to "O"
 )
 
 private val IGNORED_WORDS = setOf(

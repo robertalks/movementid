@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -51,6 +52,7 @@ import com.movementid.app.MainViewModel
 import com.movementid.app.data.MovementEntry
 import com.movementid.app.ui.MakerMark
 import com.movementid.app.ui.makerNameFrom
+import com.movementid.app.ui.theme.Engraved
 import com.movementid.app.ui.theme.MovementColors
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -164,9 +166,9 @@ fun HomeScreen(
 /**
  * A row in the collection.
  *
- * Led by the maker mark rather than the photograph: movement photographs all look alike at
- * thumbnail size — a grey disc of metal — whereas the marks differ in colour and letter, so the
- * list can be scanned rather than read. The photo still appears, smaller, on the right.
+ * Photo on the left (68dp) with the maker mark badged over its bottom-left corner, so the
+ * movement image is the first thing you see and the mark reads against it rather than floating
+ * separately. Text on the right: caliber name, type/years subtitle, then spec and engraving chips.
  */
 @Composable
 private fun MovementCard(entry: MovementEntry, onClick: () -> Unit) {
@@ -178,11 +180,29 @@ private fun MovementCard(entry: MovementEntry, onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth().clickable { onClick() }
     ) {
         Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.Top
         ) {
-            MakerMark(maker = maker, size = 48.dp)
-            Spacer(Modifier.width(13.dp))
+            // Photo + maker mark badge
+            Box(modifier = Modifier.size(68.dp)) {
+                AsyncImage(
+                    model = entry.photoPath,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(10.dp))
+                )
+                MakerMark(
+                    maker = maker,
+                    size = 24.dp,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .offset((-4).dp, 4.dp)
+                )
+            }
+
+            Spacer(Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -195,15 +215,13 @@ private fun MovementCard(entry: MovementEntry, onClick: () -> Unit) {
                     overflow = TextOverflow.Ellipsis
                 )
 
-                // Type and production years say more at a glance than the brand, which the mark
-                // has already shown, or the save date, which is rarely what you're looking for.
                 val subtitle = listOfNotNull(
                     entry.movementType?.takeIf { it.isNotBlank() },
                     entry.productionYears?.takeIf { it.isNotBlank() }
                 ).joinToString(" · ").ifBlank {
                     SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(entry.timestamp))
                 }
-                Spacer(Modifier.height(3.dp))
+                Spacer(Modifier.height(2.dp))
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
@@ -223,20 +241,26 @@ private fun MovementCard(entry: MovementEntry, onClick: () -> Unit) {
                     if (extras > 0) add(Chip("${extras + 1} photos", null))
                 }
                 if (chips.isNotEmpty()) {
-                    Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Spacer(Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         chips.take(3).forEach { StatusChip(it) }
                     }
                 }
-            }
 
-            Spacer(Modifier.width(10.dp))
-            AsyncImage(
-                model = entry.photoPath,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp))
-            )
+                // First 2 markings read off the movement — shown in monospace so they read as
+                // engraved text, not the app's own label copy.
+                val markings = entry.markings.orEmpty()
+                    .lines()
+                    .map { it.trim() }
+                    .filter { it.isNotBlank() }
+                    .take(2)
+                if (markings.isNotEmpty()) {
+                    Spacer(Modifier.height(5.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        markings.forEach { EngravingChip(it) }
+                    }
+                }
+            }
         }
     }
 }
@@ -261,6 +285,25 @@ private fun StatusChip(chip: Chip) {
             color = accent ?: MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+        )
+    }
+}
+
+@Composable
+private fun EngravingChip(text: String) {
+    Surface(
+        shape = RoundedCornerShape(4.dp),
+        color = MovementColors.SurfaceRaised,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+    ) {
+        Text(
+            text = text,
+            fontFamily = Engraved,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
         )
     }
 }
